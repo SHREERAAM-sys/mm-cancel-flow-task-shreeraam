@@ -8,23 +8,25 @@
     "start": "next start",
     "lint": "next lint",
     "db:reset": "supabase db reset",
-    "db:setup": "supabase start && PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres -f seed.sql"
+    "db:setup": "supabase start --debug &&  PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres -f seed.sql"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.50.5",
     "next": "15.3.5",
+    "pg": "^8.16.3",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "supabase": "^2.34.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.15.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.3.5",
-    "supabase": "^1.200.3",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
