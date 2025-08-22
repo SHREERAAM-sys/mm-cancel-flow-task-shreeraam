@@ -1,15 +1,42 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import CancelComponent from './components/CancelSubscriptionComponent';
+
+
+export type User = {
+    id: string
+    email: string
+}
+
+export type SubscriptionStatus = 'active' | 'pending_cancellation' | 'cancelled';
+
+export type Subscription = {
+  id: number
+  status: SubscriptionStatus;
+  isTrialSubscription: boolean;
+  cancelAtPeriodEnd: boolean;
+  /** ISO 8601 string, e.g. from Date#toISOString() */
+  currentPeriodEnd: string;
+  /** Price in USD (dollars) for UI display */
+  monthlyPrice: number;
+  isUCStudent: boolean;
+  hasManagedAccess: boolean;
+  managedOrganization: string | null;
+  /** Whether the user accepted a downsell offer in this period */
+  downsellAccepted: boolean;
+};
+
 
 // Mock user data for UI display
-const mockUser = {
+const mockUser : User = {
   email: 'user@example.com',
   id: '1'
 };
 
 // Mock subscription data for UI display
-const mockSubscriptionData = {
+const mockSubscriptionData : Subscription = {
+  id:11,
   status: 'active',
   isTrialSubscription: false,
   cancelAtPeriodEnd: false,
@@ -28,6 +55,11 @@ export default function ProfilePage() {
   // New state for settings toggle
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
 
+  // NEW: modal visibility for cancellation model
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [subscriptionDetails, setSubscriptionDetails] = useState<Subscription>(mockSubscriptionData);
+  const [userDetails, setUserDetails] = useState<User>(mockUser);
+
   const handleSignOut = async () => {
     setIsSigningOut(true);
     // Simulate sign out delay
@@ -40,6 +72,56 @@ export default function ProfilePage() {
   const handleClose = () => {
     console.log('Navigate to jobs');
   };
+
+  // --- fetch on mount
+  useEffect(() => {
+    (async () => {
+      const user = await fetchUserFromDb(mockUser.id);
+      setUserDetails(userDetails)
+      const fresh = await fetchSubscriptionFromDb(mockUser.id);
+      setSubscriptionDetails(fresh);
+    })();
+  }, []);
+
+  // --- re-fetch when the cancel modal transitions from open -> closed
+  const prevShowCancelRef = useRef(showCancelModal);
+  useEffect(() => {
+    const wasOpen = prevShowCancelRef.current;
+    const isNowClosed = !showCancelModal;
+
+    if (wasOpen && isNowClosed) {
+      (async () => {
+        const fresh = await fetchSubscriptionFromDb(mockUser.id);
+        setSubscriptionDetails(fresh); // triggers re-render with updated data
+      })();
+    }
+
+    prevShowCancelRef.current = showCancelModal;
+  }, [showCancelModal]);
+
+  async function fetchSubscriptionFromDb(userId: string): Promise<Subscription> {
+  // TODO: replace with Supabase / API call
+    await new Promise((r) => setTimeout(r, 250));
+
+    // Example: return a fresh copy you’d get from DB
+    // (you can tweak this to reflect any server-side changes)
+    return {
+      ...mockSubscriptionData,
+      id: 11,
+    };
+}
+
+ async function fetchUserFromDb(userId: string): Promise<User> {
+  // TODO: replace with Supabase / API call
+    await new Promise((r) => setTimeout(r, 250));
+
+    // Example: return a fresh copy you’d get from DB
+    // (you can tweak this to reflect any server-side changes)
+    return {
+      ...mockUser,
+    };
+}
+
 
   if (loading) {
     return (
@@ -97,6 +179,20 @@ export default function ProfilePage() {
     );
   }
 
+  if(showCancelModal) {
+    return (
+
+          <CancelComponent
+      isOpen={showCancelModal}
+      onClose={() => setShowCancelModal(false)}
+      userEmail={mockUser.email}
+      userDetails={mockUser}
+      subscriptionDetails={mockSubscriptionData}
+
+    />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-12 relative">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -137,7 +233,7 @@ export default function ProfilePage() {
             <div className="space-y-3">
               <div>
                 <p className="text-sm font-medium text-gray-500">Email</p>
-                <p className="mt-1 text-md text-gray-900">{mockUser.email}</p>
+                <p className="mt-1 text-md text-gray-900">{userDetails.email}</p>
               </div>
               <div className="pt-2 space-y-3">
                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
@@ -150,15 +246,25 @@ export default function ProfilePage() {
                     <p className="text-sm font-medium text-gray-900">Subscription status</p>
                   </div>
                   <div className="flex items-center space-x-2">
-                    {mockSubscriptionData.status === 'active' && !mockSubscriptionData.isTrialSubscription && !mockSubscriptionData.cancelAtPeriodEnd && (
+                    {subscriptionDetails.status === 'active' && !subscriptionDetails.isTrialSubscription && !subscriptionDetails.cancelAtPeriodEnd && (
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-green-50 text-green-700 border border-green-200">
                         Active
+                      </span>
+                    )}
+                    {subscriptionDetails.status === 'pending_cancellation' &&  (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                        Pending cancellation
+                      </span>
+                    )}
+                    {subscriptionDetails.status === 'cancelled' &&  (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-red-50 text-red-700 border border-red-200">
+                        Cancelled
                       </span>
                     )}
                   </div>
                 </div>
 
-                {mockSubscriptionData.status === 'active' && !mockSubscriptionData.isTrialSubscription && !mockSubscriptionData.cancelAtPeriodEnd && (
+                {subscriptionDetails.status === 'active' && !subscriptionDetails.isTrialSubscription && !subscriptionDetails.cancelAtPeriodEnd && (
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div className="flex items-center space-x-3">
                       <div className="flex-shrink-0">
@@ -169,7 +275,7 @@ export default function ProfilePage() {
                       <p className="text-sm font-medium text-gray-900">Next payment</p>
                     </div>
                     <p className="text-sm font-medium text-gray-900">
-                      {mockSubscriptionData.currentPeriodEnd && new Date(mockSubscriptionData.currentPeriodEnd).toLocaleDateString('en-US', {
+                      {subscriptionDetails.currentPeriodEnd && new Date(subscriptionDetails.currentPeriodEnd).toLocaleDateString('en-US', {
                         month: 'long',
                         day: 'numeric'
                       })}
@@ -248,9 +354,8 @@ export default function ProfilePage() {
                       <span className="text-sm font-medium">View billing history</span>
                     </button>
                     <button
-                      onClick={() => {
-                        console.log('Cancel button clicked - no action');
-                      }}
+                    //cancellation button
+                      onClick={() => setShowCancelModal(true)}
                       className="inline-flex items-center justify-center w-full px-4 py-3 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 hover:border-red-300 transition-all duration-200 shadow-sm group"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -266,5 +371,8 @@ export default function ProfilePage() {
         </div>
       </div>
     </div>
+
   );
+
+
 }
